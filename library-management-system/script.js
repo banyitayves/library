@@ -2611,3 +2611,350 @@ function exportDefaulters() {
     a.click();
     window.URL.revokeObjectURL(url);
 }
+
+// ========== STORIES & E-BOOKS FUNCTIONS ==========
+let currentStoryId = null;
+let currentFontSize = 16;
+
+function initStories() {
+    try {
+        if (!db.stories) {
+            db.stories = db.loadData('stories') || [];
+        }
+
+        const addBtn = document.getElementById('addStoryBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', openStoryModal);
+        }
+
+        const storyForm = document.getElementById('storyForm');
+        if (storyForm) {
+            storyForm.addEventListener('submit', saveStory);
+        }
+
+        const closeStoryBtn = document.getElementById('closeStoryModalBtn');
+        if (closeStoryBtn) {
+            closeStoryBtn.addEventListener('click', () => {
+                document.getElementById('storyModal').classList.remove('show');
+            });
+        }
+
+        const storiesSearch = document.getElementById('storiesSearch');
+        if (storiesSearch) {
+            storiesSearch.addEventListener('input', searchStories);
+        }
+
+        const storiesCategoryFilter = document.getElementById('storiesCategoryFilter');
+        if (storiesCategoryFilter) {
+            storiesCategoryFilter.addEventListener('change', filterStories);
+        }
+
+        // Add default story if none exist
+        if (db.stories.length === 0) {
+            addDefaultStory();
+        }
+
+        loadStories();
+    } catch(error) {
+        console.error('Error initializing stories:', error);
+    }
+}
+
+function addDefaultStory() {
+    const defaultStory = {
+        id: db.generateId(),
+        title: 'Sample: The Tale of Wisdom',
+        author: 'Library System',
+        category: 'Fiction',
+        description: 'A short story to demonstrate the reading feature. Click to read the full story online.',
+        content: `Once upon a time, in a quiet village nestled between mountains, there lived a young scholar who spent his days in the great library. 
+
+The library was ancient, filled with countless stories from civilizations long past. The scholar would read late into the evening, absorbing knowledge from every page.
+
+One day, while searching for a rare manuscript, the scholar discovered a hidden chamber. Inside lay books that seemed to glow with an inner light. These were the oldest stories - tales of wisdom that had been cherished for millennia.
+
+As the scholar read these precious works, something magical happened. The words began to come alive. He could see the worlds within them, hear the voices of the storytellers who first wrote them.
+
+From that day forward, the scholar understood a profound truth: Books are not merely windows to other worlds; they are doorways to infinite possibilities. Every story holds the power to transform a reader's heart and mind.
+
+And so, the scholar spent his remaining years sharing these tales with others, showing them the magic that lies within the pages of a book.
+
+The End.`,
+        cover: '',
+        pdfLink: '',
+        dateAdded: new Date().toISOString()
+    };
+    db.stories.push(defaultStory);
+    db.saveData('stories', db.stories);
+}
+
+function openStoryModal() {
+    currentStoryId = null;
+    document.getElementById('storyModalTitle').textContent = 'Add New Story';
+    document.getElementById('storyForm').reset();
+    document.getElementById('storyModal').classList.add('show');
+}
+
+function saveStory(e) {
+    e.preventDefault();
+    try {
+        const title = document.getElementById('storyTitle').value.trim();
+        const author = document.getElementById('storyAuthor').value.trim();
+        const category = document.getElementById('storyCategory').value;
+        const cover = document.getElementById('storyCover').value.trim();
+        const description = document.getElementById('storyDescription').value.trim();
+        const content = document.getElementById('storyContent').value.trim();
+        const pdfLink = document.getElementById('storyPDF').value.trim();
+
+        if (!title || !author || !description || !content) {
+            alert('Please fill in all required fields');
+            return;
+        }
+
+        if (currentStoryId) {
+            // Edit existing
+            const story = db.stories.find(s => s.id === currentStoryId);
+            if (story) {
+                story.title = title;
+                story.author = author;
+                story.category = category;
+                story.cover = cover;
+                story.description = description;
+                story.content = content;
+                story.pdfLink = pdfLink;
+            }
+        } else {
+            // Add new
+            const newStory = {
+                id: db.generateId(),
+                title,
+                author,
+                category,
+                cover,
+                description,
+                content,
+                pdfLink,
+                dateAdded: new Date().toISOString()
+            };
+            db.stories.push(newStory);
+        }
+
+        db.saveData('stories', db.stories);
+        document.getElementById('storyModal').classList.remove('show');
+        document.getElementById('storyForm').reset();
+        alert('Story saved successfully!');
+        loadStories();
+    } catch(error) {
+        console.error('Error saving story:', error);
+        alert('Error saving story: ' + error.message);
+    }
+}
+
+function loadStories() {
+    try {
+        if (!db.stories) {
+            db.stories = db.loadData('stories') || [];
+        }
+
+        const grid = document.getElementById('storiesGrid');
+        if (!grid) return;
+
+        if (!db.stories || db.stories.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #7f8c8d;">No stories available. Add one to get started!</div>';
+            return;
+        }
+
+        grid.innerHTML = db.stories.map(story => `
+            <div class="story-card">
+                <div class="story-card-cover">
+                    ${story.cover ? `<img src="${story.cover}" alt="${story.title}">` : '📖'}
+                </div>
+                <div class="story-card-info">
+                    <div class="story-card-title">${story.title}</div>
+                    <div class="story-card-author">by ${story.author}</div>
+                    <span class="story-card-category">${story.category}</span>
+                    <div class="story-card-description">${story.description}</div>
+                    <div class="story-card-actions">
+                        <button class="btn-primary" onclick="readStory('${story.id}')">📖 Read</button>
+                        <button class="btn-secondary" onclick="editStory('${story.id}')">✏️ Edit</button>
+                        <button class="btn-secondary delete" onclick="deleteStory('${story.id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch(error) {
+        console.error('Error loading stories:', error);
+    }
+}
+
+function readStory(storyId) {
+    try {
+        const story = db.stories.find(s => s.id === storyId);
+        if (!story) return;
+
+        currentStoryId = storyId;
+        currentFontSize = 16;
+
+        document.getElementById('readerTitle').textContent = story.title;
+        document.getElementById('readerAuthor').textContent = `by ${story.author}`;
+        document.getElementById('storyContent').innerHTML = story.content
+            .split('\n\n')
+            .map(p => `<p>${p.trim()}</p>`)
+            .join('');
+        document.getElementById('storyContent').style.fontSize = currentFontSize + 'px';
+
+        if (story.pdfLink) {
+            const pdfBtn = document.getElementById('downloadPDFBtn');
+            pdfBtn.style.display = 'inline-block';
+            pdfBtn.onclick = () => window.open(story.pdfLink, '_blank');
+        } else {
+            document.getElementById('downloadPDFBtn').style.display = 'none';
+        }
+
+        document.getElementById('storyReaderModal').classList.add('show');
+    } catch(error) {
+        console.error('Error reading story:', error);
+        alert('Error opening story');
+    }
+}
+
+function closeStoryReader() {
+    document.getElementById('storyReaderModal').classList.remove('show');
+}
+
+function increaseFontSize() {
+    currentFontSize = Math.min(currentFontSize + 2, 28);
+    document.getElementById('storyContent').style.fontSize = currentFontSize + 'px';
+}
+
+function decreaseFontSize() {
+    currentFontSize = Math.max(currentFontSize - 2, 12);
+    document.getElementById('storyContent').style.fontSize = currentFontSize + 'px';
+}
+
+function editStory(storyId) {
+    const story = db.stories.find(s => s.id === storyId);
+    if (!story) return;
+
+    currentStoryId = storyId;
+    document.getElementById('storyModalTitle').textContent = 'Edit Story';
+    document.getElementById('storyTitle').value = story.title;
+    document.getElementById('storyAuthor').value = story.author;
+    document.getElementById('storyCategory').value = story.category;
+    document.getElementById('storyCover').value = story.cover || '';
+    document.getElementById('storyDescription').value = story.description;
+    document.getElementById('storyContent').value = story.content;
+    document.getElementById('storyPDF').value = story.pdfLink || '';
+    document.getElementById('storyModal').classList.add('show');
+}
+
+function deleteStory(storyId) {
+    if (confirm('Are you sure you want to delete this story?')) {
+        db.stories = db.stories.filter(s => s.id !== storyId);
+        db.saveData('stories', db.stories);
+        loadStories();
+    }
+}
+
+function searchStories(e) {
+    try {
+        const query = e.target.value.toLowerCase().trim();
+        const category = document.getElementById('storiesCategoryFilter').value;
+
+        if (!db.stories) {
+            loadStories();
+            return;
+        }
+
+        let filtered = db.stories;
+
+        if (query) {
+            filtered = filtered.filter(story => {
+                const title = story.title ? story.title.toLowerCase() : '';
+                const author = story.author ? story.author.toLowerCase() : '';
+                const description = story.description ? story.description.toLowerCase() : '';
+                return title.includes(query) || author.includes(query) || description.includes(query);
+            });
+        }
+
+        if (category) {
+            filtered = filtered.filter(story => story.category === category);
+        }
+
+        const grid = document.getElementById('storiesGrid');
+        if (filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #7f8c8d;">No stories found</div>';
+            return;
+        }
+
+        grid.innerHTML = filtered.map(story => `
+            <div class="story-card">
+                <div class="story-card-cover">
+                    ${story.cover ? `<img src="${story.cover}" alt="${story.title}">` : '📖'}
+                </div>
+                <div class="story-card-info">
+                    <div class="story-card-title">${story.title}</div>
+                    <div class="story-card-author">by ${story.author}</div>
+                    <span class="story-card-category">${story.category}</span>
+                    <div class="story-card-description">${story.description}</div>
+                    <div class="story-card-actions">
+                        <button class="btn-primary" onclick="readStory('${story.id}')">📖 Read</button>
+                        <button class="btn-secondary" onclick="editStory('${story.id}')">✏️ Edit</button>
+                        <button class="btn-secondary delete" onclick="deleteStory('${story.id}')">🗑️ Delete</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch(error) {
+        console.error('Error searching stories:', error);
+    }
+}
+
+function filterStories() {
+    const category = document.getElementById('storiesCategoryFilter').value;
+    const query = document.getElementById('storiesSearch').value.toLowerCase();
+
+    if (!db.stories) {
+        loadStories();
+        return;
+    }
+
+    let filtered = db.stories;
+
+    if (category) {
+        filtered = filtered.filter(story => story.category === category);
+    }
+
+    if (query) {
+        filtered = filtered.filter(story => {
+            const title = story.title ? story.title.toLowerCase() : '';
+            const author = story.author ? story.author.toLowerCase() : '';
+            return title.includes(query) || author.includes(query);
+        });
+    }
+
+    const grid = document.getElementById('storiesGrid');
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #7f8c8d;">No stories found</div>';
+        return;
+    }
+
+    grid.innerHTML = filtered.map(story => `
+        <div class="story-card">
+            <div class="story-card-cover">
+                ${story.cover ? `<img src="${story.cover}" alt="${story.title}">` : '📖'}
+            </div>
+            <div class="story-card-info">
+                <div class="story-card-title">${story.title}</div>
+                <div class="story-card-author">by ${story.author}</div>
+                <span class="story-card-category">${story.category}</span>
+                <div class="story-card-description">${story.description}</div>
+                <div class="story-card-actions">
+                    <button class="btn-primary" onclick="readStory('${story.id}')">📖 Read</button>
+                    <button class="btn-secondary" onclick="editStory('${story.id}')">✏️ Edit</button>
+                    <button class="btn-secondary delete" onclick="deleteStory('${story.id}')">🗑️ Delete</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
