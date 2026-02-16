@@ -19,6 +19,7 @@ class LibraryDB {
         this.purchaseOrders = this.loadData('purchaseOrders') || [];
         this.serials = this.loadData('serials') || [];
         this.defaulters = this.loadData('defaulters') || [];
+        this.stories = this.loadData('stories') || [];
         this.settings = this.loadData('settings') || this.getDefaultSettings();
         
         // Add default book if none exist
@@ -2271,17 +2272,104 @@ function importData(e) {
 
 // ========== GLOBAL SEARCH ==========
 function performGlobalSearch(e) {
-    const query = e.target.value.toLowerCase();
-    if (!query) return;
+    try {
+        const query = e.target.value.toLowerCase().trim();
+        if (!query || query.length < 2) return;
 
-    const results = {
-        books: db.books.filter(b => b.title.toLowerCase().includes(query)),
-        patrons: db.patrons.filter(p => `${p.firstName} ${p.lastName}`.toLowerCase().includes(query)),
-        serials: db.serials.filter(s => s.title.toLowerCase().includes(query))
-    };
+        const results = {
+            books: [],
+            patrons: [],
+            serials: [],
+            stories: []
+        };
 
-    const totalResults = results.books.length + results.patrons.length + results.serials.length;
-    alert(`Found ${totalResults} results:\n\nBooks: ${results.books.length}\nPatrons: ${results.patrons.length}\nSerials: ${results.serials.length}`);
+        // Search books
+        if (db.books && db.books.length > 0) {
+            results.books = db.books.filter(b => {
+                const title = b.title ? b.title.toLowerCase() : '';
+                const author = b.author ? b.author.toLowerCase() : '';
+                const isbn = b.isbn ? b.isbn.toLowerCase() : '';
+                return title.includes(query) || author.includes(query) || isbn.includes(query);
+            });
+        }
+
+        // Search patrons
+        if (db.patrons && db.patrons.length > 0) {
+            results.patrons = db.patrons.filter(p => {
+                const fullName = `${p.firstName || ''} ${p.lastName || ''}`.toLowerCase();
+                const email = p.email ? p.email.toLowerCase() : '';
+                return fullName.includes(query) || email.includes(query);
+            });
+        }
+
+        // Search serials
+        if (db.serials && db.serials.length > 0) {
+            results.serials = db.serials.filter(s => {
+                const title = s.title ? s.title.toLowerCase() : '';
+                return title.includes(query);
+            });
+        }
+
+        // Search stories
+        if (db.stories && db.stories.length > 0) {
+            results.stories = db.stories.filter(s => {
+                const title = s.title ? s.title.toLowerCase() : '';
+                const author = s.author ? s.author.toLowerCase() : '';
+                const description = s.description ? s.description.toLowerCase() : '';
+                return title.includes(query) || author.includes(query) || description.includes(query);
+            });
+        }
+
+        const totalResults = results.books.length + results.patrons.length + results.serials.length + results.stories.length;
+        
+        if (totalResults === 0) {
+            alert(`No results found for "${e.target.value}"`);
+            return;
+        }
+
+        // Build detailed results message
+        let message = `Found ${totalResults} result(s) for "${e.target.value}":\n\n`;
+        
+        if (results.books.length > 0) {
+            message += `📚 Books (${results.books.length}):\n`;
+            results.books.slice(0, 3).forEach(b => {
+                message += `  • ${b.title} by ${b.author}\n`;
+            });
+            if (results.books.length > 3) message += `  ... and ${results.books.length - 3} more\n`;
+            message += '\n';
+        }
+
+        if (results.patrons.length > 0) {
+            message += `👥 Patrons (${results.patrons.length}):\n`;
+            results.patrons.slice(0, 3).forEach(p => {
+                message += `  • ${p.firstName} ${p.lastName}\n`;
+            });
+            if (results.patrons.length > 3) message += `  ... and ${results.patrons.length - 3} more\n`;
+            message += '\n';
+        }
+
+        if (results.serials.length > 0) {
+            message += `📰 Serials (${results.serials.length}):\n`;
+            results.serials.slice(0, 3).forEach(s => {
+                message += `  • ${s.title}\n`;
+            });
+            if (results.serials.length > 3) message += `  ... and ${results.serials.length - 3} more\n`;
+            message += '\n';
+        }
+
+        if (results.stories.length > 0) {
+            message += `📖 Stories & E-Books (${results.stories.length}):\n`;
+            results.stories.slice(0, 3).forEach(s => {
+                message += `  • ${s.title} by ${s.author}\n`;
+            });
+            if (results.stories.length > 3) message += `  ... and ${results.stories.length - 3} more\n`;
+        }
+
+        alert(message);
+    } catch(error) {
+        console.error('Error performing global search:', error);
+        alert('Error searching. Please try again.');
+    }
 }
 
 // ========== UTILITY FUNCTIONS ==========
