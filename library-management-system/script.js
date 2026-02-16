@@ -228,8 +228,14 @@ function initializeEventListeners() {
         document.getElementById('patronModal').classList.remove('show');
     });
     document.getElementById('patronForm').addEventListener('submit', savePatron);
-    document.getElementById('patronSearch').addEventListener('input', searchPatrons);
-    document.getElementById('patronCategoryFilter').addEventListener('change', filterPatrons);
+    const patronSearchInput = document.getElementById('patronSearch');
+    if (patronSearchInput) {
+        patronSearchInput.addEventListener('input', searchPatrons);
+    }
+    const patronCategoryFilterSelect = document.getElementById('patronCategoryFilter');
+    if (patronCategoryFilterSelect) {
+        patronCategoryFilterSelect.addEventListener('change', filterPatrons);
+    }
 
     // OPAC
     document.getElementById('opacSearch').parentElement.querySelector('button').addEventListener('click', searchOpac);
@@ -958,41 +964,63 @@ function displayAllBooksTable(books) {
 }
 
 function searchAllBooks(e) {
-    const query = e.target.value.toLowerCase();
-    const category = document.getElementById('booksCategoryFilter').value;
+    try {
+        const query = e.target.value.toLowerCase().trim();
+        const category = document.getElementById('booksCategoryFilter').value;
 
-    let filtered = db.books.filter(book =>
-        book.title.toLowerCase().includes(query) ||
-        book.author.toLowerCase().includes(query) ||
-        (book.isbn && book.isbn.includes(query))
-    );
+        if (!db.books || db.books.length === 0) {
+            displayAllBooksTable([]);
+            return;
+        }
 
-    if (category) {
-        filtered = filtered.filter(book => book.category === category);
+        let filtered = db.books.filter(book => {
+            const title = book.title ? book.title.toLowerCase() : '';
+            const author = book.author ? book.author.toLowerCase() : '';
+            const isbn = book.isbn ? book.isbn.toLowerCase() : '';
+            return title.includes(query) || author.includes(query) || isbn.includes(query);
+        });
+
+        if (category) {
+            filtered = filtered.filter(book => book.category === category);
+        }
+
+        displayAllBooksTable(filtered);
+    } catch(error) {
+        console.error('Error searching books:', error);
+        alert('Error searching books. Please try again.');
     }
-
-    displayAllBooksTable(filtered);
 }
 
 function filterAllBooks() {
-    const query = document.getElementById('booksSearch').value.toLowerCase();
-    const category = document.getElementById('booksCategoryFilter').value;
+    try {
+        const query = document.getElementById('booksSearch').value.toLowerCase().trim();
+        const category = document.getElementById('booksCategoryFilter').value;
 
-    let filtered = db.books;
+        if (!db.books || db.books.length === 0) {
+            displayAllBooksTable([]);
+            return;
+        }
 
-    if (query) {
-        filtered = filtered.filter(book =>
-            book.title.toLowerCase().includes(query) ||
-            book.author.toLowerCase().includes(query) ||
-            (book.isbn && book.isbn.includes(query))
-        );
+        let filtered = db.books;
+
+        if (query) {
+            filtered = filtered.filter(book => {
+                const title = book.title ? book.title.toLowerCase() : '';
+                const author = book.author ? book.author.toLowerCase() : '';
+                const isbn = book.isbn ? book.isbn.toLowerCase() : '';
+                return title.includes(query) || author.includes(query) || isbn.includes(query);
+            });
+        }
+
+        if (category) {
+            filtered = filtered.filter(book => book.category === category);
+        }
+
+        displayAllBooksTable(filtered);
+    } catch(error) {
+        console.error('Error filtering books:', error);
+        displayAllBooksTable(db.books);
     }
-
-    if (category) {
-        filtered = filtered.filter(book => book.category === category);
-    }
-
-    displayAllBooksTable(filtered);
 }
 
 // ========== CATALOGING ==========
@@ -1369,30 +1397,40 @@ function loadPatrons() {
 
 function displayPatronsTable(patrons) {
     const tbody = document.getElementById('patronsTable');
+    if (!tbody) return;
+    
     tbody.innerHTML = patrons.length > 0
         ? patrons.map(patron => {
-            const borrowedCount = db.loans.filter(l => 
-                l.patronId === patron.id && !l.returnDate
-            ).length;
-            const finesAmount = calculateFines(patron.id);
+            try {
+                const borrowedCount = db.loans.filter(l => 
+                    l.patronId === patron.id && !l.returnDate
+                ).length;
+                const finesAmount = calculateFines(patron.id);
+                const patronIdDisplay = patron.id && patron.id.length > 8 
+                    ? patron.id.substr(0, 8) 
+                    : patron.id || 'N/A';
 
-            return `
-                <tr>
-                    <td>${patron.id.substr(0, 8)}</td>
-                    <td>${patron.firstName} ${patron.lastName}</td>
-                    <td>${patron.email}</td>
-                    <td>${patron.category}</td>
-                    <td>
-                        <span class="status available">${patron.status}</span>
-                    </td>
-                    <td>${borrowedCount}</td>
-                    <td>$${finesAmount.toFixed(2)}</td>
-                    <td>
-                        <button class="btn-secondary" onclick="editPatron('${patron.id}')">Edit</button>
-                        <button class="btn-secondary" onclick="deletePatron('${patron.id}')">Delete</button>
-                    </td>
-                </tr>
-            `;
+                return `
+                    <tr>
+                        <td>${patronIdDisplay}</td>
+                        <td>${(patron.firstName || '') + ' ' + (patron.lastName || '')}</td>
+                        <td>${patron.email || 'N/A'}</td>
+                        <td>${patron.category || 'Student'}</td>
+                        <td>
+                            <span class="status available">${patron.status || 'active'}</span>
+                        </td>
+                        <td>${borrowedCount}</td>
+                        <td>$${finesAmount.toFixed(2)}</td>
+                        <td>
+                            <button class="btn-secondary" onclick="editPatron('${patron.id}')">Edit</button>
+                            <button class="btn-secondary" onclick="deletePatron('${patron.id}')">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            } catch(error) {
+                console.error('Error rendering patron row:', patron, error);
+                return `<tr><td colspan="8" style="color: red;">Error rendering this patron</td></tr>`;
+            }
         }).join('')
         : '<tr><td colspan="8" style="text-align: center; color: #7f8c8d;">No patrons registered</td></tr>';
 }
@@ -1463,21 +1501,43 @@ function deletePatron(id) {
 }
 
 function searchPatrons(e) {
-    const query = e.target.value.toLowerCase();
-    const filtered = db.patrons.filter(patron =>
-        patron.firstName.toLowerCase().includes(query) ||
-        patron.lastName.toLowerCase().includes(query) ||
-        patron.email.toLowerCase().includes(query)
-    );
-    displayPatronsTable(filtered);
+    try {
+        const query = e.target.value.toLowerCase().trim();
+        if (!db.patrons || db.patrons.length === 0) {
+            displayPatronsTable([]);
+            return;
+        }
+        
+        const filtered = db.patrons.filter(patron => {
+            const firstName = patron.firstName ? patron.firstName.toLowerCase() : '';
+            const lastName = patron.lastName ? patron.lastName.toLowerCase() : '';
+            const email = patron.email ? patron.email.toLowerCase() : '';
+            return firstName.includes(query) || lastName.includes(query) || email.includes(query);
+        });
+        displayPatronsTable(filtered);
+    } catch(error) {
+        console.error('Error searching patrons:', error);
+        alert('Error searching patrons. Please try again.');
+    }
 }
 
 function filterPatrons() {
-    const category = document.getElementById('patronCategoryFilter').value;
-    const filtered = category
-        ? db.patrons.filter(p => p.category === category)
-        : db.patrons;
-    displayPatronsTable(filtered);
+    try {
+        const category = document.getElementById('patronCategoryFilter').value;
+        
+        if (!db.patrons || db.patrons.length === 0) {
+            displayPatronsTable([]);
+            return;
+        }
+        
+        const filtered = category
+            ? db.patrons.filter(p => p.category === category)
+            : db.patrons;
+        displayPatronsTable(filtered);
+    } catch(error) {
+        console.error('Error filtering patrons:', error);
+        displayPatronsTable(db.patrons);
+    }
 }
 
 function calculateFines(patronId) {
