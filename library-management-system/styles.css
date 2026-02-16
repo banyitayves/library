@@ -1341,3 +1341,72 @@ body {
     background: var(--accent-color);
     color: white;
 }
+/* ========== DEFAULTERS MODULE ========== */
+.defaulters-container {
+    padding: 20px;
+}
+
+.defaulters-container h3 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+}
+
+.defaulters-container h4 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    margin-top: 20px;
+}
+
+.defaulters-panel {
+    background: var(--white);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+}
+
+.controls-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.controls-row input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.controls-row button {
+    padding: 10px 15px;
+}
+
+.defaulters-table-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.defaulters-table-actions button {
+    padding: 5px 10px;
+    font-size: 0.85rem;
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.defaulters-table-actions button:hover {
+    background: #2980b9;
+}
+
+.defaulters-table-actions button.delete {
+    background: var(--accent-color);
+}
+
+.defaulters-table-actions button.delete:hover {
+    background: #c0392b;
+}

@@ -56,8 +56,8 @@
                 <li><a href="#" data-module="dashboard" class="nav-link active">Dashboard</a></li>
                 <li><a href="#" data-module="books" class="nav-link">📚 All Books</a></li>
                 <li class="role-admin role-librarian"><a href="#" data-module="cataloging" class="nav-link">Cataloging</a></li>
-                <li class="role-admin role-libraok
-        rian"><a href="#" data-module="circulation" class="nav-link">Circulation</a></li>
+                <li class="role-admin role-librarian"><a href="#" data-module="circulation" class="nav-link">Circulation</a></li>
+                <li class="role-admin role-librarian"><a href="#" data-module="defaulters" class="nav-link">⚠️ Unreturned Books</a></li>
                 <li><a href="#" data-module="opac" class="nav-link">Search OPAC</a></li>
                 <li class="role-admin role-librarian"><a href="#" data-module="patrons" class="nav-link">Patron Management</a></li>
                 <li class="role-admin role-librarian"><a href="#" data-module="acquisitions" class="nav-link">Acquisitions</a></li>
@@ -330,6 +330,66 @@
                                     </tr>
                                 </thead>
                                 <tbody id="borrowRequestsTable">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Unreturned Books Module -->
+                <section id="defaulters-module" class="module">
+                    <div class="defaulters-container">
+                        <h3>⚠️ Students with Unreturned Books</h3>
+                        
+                        <div class="defaulters-panel">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Student Name</label>
+                                    <input type="text" id="defaulterName" placeholder="Enter student name">
+                                </div>
+                                <div class="form-group">
+                                    <label>Student ID / Code</label>
+                                    <input type="text" id="defaulterId" placeholder="Enter student ID or code">
+                                </div>
+                                <div class="form-group">
+                                    <label>Books Not Returned</label>
+                                    <input type="text" id="defaulterBooks" placeholder="Enter book titles (comma separated)">
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Date Books Were Due</label>
+                                    <input type="date" id="defaulterDueDate">
+                                </div>
+                                <div class="form-group">
+                                    <label>Notes</label>
+                                    <input type="text" id="defaulterNotes" placeholder="Additional notes">
+                                </div>
+                            </div>
+
+                            <button class="btn-primary" id="addDefaulterBtn">➕ Add Defaulter</button>
+                        </div>
+
+                        <div class="defaulters-panel">
+                            <h4>📑 Defaulters List</h4>
+                            <div class="controls-row">
+                                <input type="text" id="defaultersSearch" placeholder="Search defaulters...">
+                                <button class="btn-secondary" id="exportDefaultersBtn">📤 Export List</button>
+                            </div>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Student Name</th>
+                                        <th>Student ID</th>
+                                        <th>Books Not Returned</th>
+                                        <th>Due Date</th>
+                                        <th>Days Overdue</th>
+                                        <th>Notes</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="defaultersTable">
                                 </tbody>
                             </table>
                         </div>
