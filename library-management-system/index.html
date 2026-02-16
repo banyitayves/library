@@ -935,8 +935,63 @@
                             </div>
                         </div>
 
+                        <div class="settings-group">
+                            <h3>📱 Multi-Device Sync & Backup</h3>
+                            <p style="margin-bottom: 15px; color: #7f8c8d; font-size: 14px;">Sync your library data across multiple devices. Choose from manual backup or automatic cloud sync.</p>
+                            
+                            <div class="setting-item">
+                                <label>Sync Method:</label>
+                                <select id="syncMethod">
+                                    <option value="manual">Manual Backup/Restore (Download & Upload)</option>
+                                    <option value="code">Sync Code (Share with other devices)</option>
+                                </select>
+                            </div>
+
+                            <div id="manualSyncSection" class="sync-section">
+                                <h4>Manual Backup & Restore</h4>
+                                <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 15px;">
+                                    Download your library data as a backup file, then upload it on another device to restore all books, members, and settings.
+                                </p>
+                                <button class="btn-primary" onclick="downloadBackup()">📥 Download Backup</button>
+                                <button class="btn-secondary" onclick="openRestoreDialog()">📤 Restore from Backup</button>
+                                <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="restoreFromBackup(event)">
+                            </div>
+
+                            <div id="codeSyncSection" class="sync-section" style="display:none;">
+                                <h4>Sync Code Method</h4>
+                                <p style="font-size: 13px; color: #7f8c8d; margin-bottom: 15px;">
+                                    Generate a sync code on this device and enter it on another device to sync all data in real-time.
+                                </p>
+                                <div class="sync-code-display">
+                                    <label>Your Device ID:</label>
+                                    <div class="sync-code-box">
+                                        <input type="text" id="deviceId" readonly style="width: 100%;">
+                                        <button class="btn-secondary" onclick="copyDeviceId()">📋 Copy ID</button>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 15px;">
+                                    <label>Sync from Another Device:</label>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="syncDeviceId" placeholder="Paste Device ID from other device">
+                                        <button class="btn-primary" onclick="syncFromDevice()">🔄 Sync Now</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sync-info-box">
+                                <h4>ℹ️ How Sync Works:</h4>
+                                <ul>
+                                    <li><strong>Manual Method:</strong> Download backup, then upload to restore on another device</li>
+                                    <li><strong>Sync Code Method:</strong> Uses browser storage to pass data between devices on your local network</li>
+                                    <li>Data syncs: Books, Members, Loans, Stories, and all settings</li>
+                                    <li>Backups are dated: <code id="lastBackupDate">Never backed up</code></li>
+                                </ul>
+                            </div>
+                        </div>
+
                         <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
                         <button class="btn-secondary" onclick="resetToDefaults()">Reset to Defaults</button>
+
                     </div>
                 </section>
 

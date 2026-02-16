@@ -423,6 +423,9 @@ function switchModule(moduleName) {
         case 'reports':
             initReports();
             break;
+        case 'settings':
+            loadSettings();
+            break;
         case 'about':
             // About page loads automatically, no additional data needed
             break;
@@ -1128,6 +1131,7 @@ function saveBook(e) {
     }
 
     db.saveData('books', db.books);
+    updateSyncData(); // Update sync data after saving
     document.getElementById('bookModal').classList.remove('show');
     document.getElementById('bookForm').reset();
     loadCatalog();
@@ -1498,6 +1502,7 @@ function savePatron(e) {
     }
 
     db.saveData('patrons', db.patrons);
+    updateSyncData(); // Update sync data after saving
     document.getElementById('patronModal').classList.remove('show');
     document.getElementById('patronForm').reset();
     loadPatrons();
@@ -2196,6 +2201,9 @@ function loadSettings() {
     document.getElementById('smsNotifications').checked = db.settings.smsNotifications;
     document.getElementById('reminderDays').value = db.settings.reminderDays;
     document.getElementById('language').value = db.settings.language;
+    
+    // Initialize sync settings
+    initSyncSettings();
 }
 
 function saveSettings() {
@@ -2209,6 +2217,7 @@ function saveSettings() {
     db.settings.language = document.getElementById('language').value;
 
     db.saveData('settings', db.settings);
+    updateSyncData(); // Update sync data after saving
     alert('Settings saved successfully!');
 }
 
@@ -2962,3 +2971,238 @@ function filterStories() {
         </div>
     `).join('');
 }
+
+// ========== MULTI-DEVICE DATA SYNC ==========
+function initSyncSettings() {
+    try {
+        // Generate or load device ID
+        let deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+            deviceId = 'DEV-' + Math.random().toString(36).substr(2, 9).toUpperCase() + '-' + new Date().getTime().toString(36).toUpperCase();
+            localStorage.setItem('deviceId', deviceId);
+        }
+        document.getElementById('deviceId').value = deviceId;
+
+        // Load last backup date
+        const lastBackup = localStorage.getItem('lastBackupDate');
+        if (lastBackup) {
+            document.getElementById('lastBackupDate').textContent = new Date(lastBackup).toLocaleString();
+        }
+
+        // Set up sync method selector
+        const syncMethod = document.getElementById('syncMethod');
+        if (syncMethod) {
+            syncMethod.addEventListener('change', (e) => {
+                if (e.target.value === 'manual') {
+                    document.getElementById('manualSyncSection').style.display = 'block';
+                    document.getElementById('codeSyncSection').style.display = 'none';
+                } else {
+                    document.getElementById('manualSyncSection').style.display = 'none';
+                    document.getElementById('codeSyncSection').style.display = 'block';
+                }
+            });
+        }
+    } catch(error) {
+        console.error('Error initializing sync settings:', error);
+    }
+}
+
+function downloadBackup() {
+    try {
+        const allData = {
+            libraryData: {
+                books: db.books || [],
+                patrons: db.patrons || [],
+                loans: db.loans || [],
+                borrowRequests: db.borrowRequests || [],
+                purchaseOrders: db.purchaseOrders || [],
+                serials: db.serials || [],
+                defaulters: db.defaulters || [],
+                stories: db.stories || [],
+                settings: db.settings || {}
+            },
+            exportDate: new Date().toISOString(),
+            exportedFrom: localStorage.getItem('deviceId') || 'unknown'
+        };
+
+        const dataStr = JSON.stringify(allData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `library_backup_${new Date().toISOString().split('T')[0]}_${allData.exportedFrom}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        localStorage.setItem('lastBackupDate', new Date().toISOString());
+        document.getElementById('lastBackupDate').textContent = new Date().toLocaleString();
+        alert('✅ Backup downloaded successfully!');
+    } catch(error) {
+        console.error('Error downloading backup:', error);
+        alert('Error downloading backup: ' + error.message);
+    }
+}
+
+function openRestoreDialog() {
+    document.getElementById('restoreFileInput').click();
+}
+
+function restoreFromBackup(event) {
+    try {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const backupData = JSON.parse(e.target.result);
+                
+                if (!backupData.libraryData) {
+                    alert('Invalid backup file format!');
+                    return;
+                }
+
+                // Confirm restoration
+                if (!confirm(`This will overwrite all current data with data from ${new Date(backupData.exportDate).toLocaleString()}. Continue?`)) {
+                    return;
+                }
+
+                const data = backupData.libraryData;
+                
+                // Restore all data
+                db.books = data.books || [];
+                db.patrons = data.patrons || [];
+                db.loans = data.loans || [];
+                db.borrowRequests = data.borrowRequests || [];
+                db.purchaseOrders = data.purchaseOrders || [];
+                db.serials = data.serials || [];
+                db.defaulters = data.defaulters || [];
+                db.stories = data.stories || [];
+                if (data.settings) db.settings = data.settings;
+
+                // Save to localStorage
+                db.saveData('books', db.books);
+                db.saveData('patrons', db.patrons);
+                db.saveData('loans', db.loans);
+                db.saveData('borrowRequests', db.borrowRequests);
+                db.saveData('purchaseOrders', db.purchaseOrders);
+                db.saveData('serials', db.serials);
+                db.saveData('defaulters', db.defaulters);
+                db.saveData('stories', db.stories);
+                db.saveData('settings', db.settings);
+
+                alert('✅ Data restored successfully! Refreshing application...');
+                location.reload();
+            } catch(err) {
+                alert('Error restoring backup: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    } catch(error) {
+        console.error('Error in restoreFromBackup:', error);
+        alert('Error restoring backup: ' + error.message);
+    }
+}
+
+function copyDeviceId() {
+    const deviceId = document.getElementById('deviceId').value;
+    navigator.clipboard.writeText(deviceId).then(() => {
+        alert('Device ID copied to clipboard!');
+    }).catch(err => {
+        alert('Could not copy to clipboard: ' + err);
+    });
+}
+
+function syncFromDevice() {
+    try {
+        const sourceDeviceId = document.getElementById('syncDeviceId').value.trim();
+        if (!sourceDeviceId) {
+            alert('Please enter a Device ID to sync from');
+            return;
+        }
+
+        // Try to retrieve sync data from localStorage using device ID
+        const syncDataKey = `sync_data_${sourceDeviceId}`;
+        const syncData = localStorage.getItem(syncDataKey);
+        
+        if (!syncData) {
+            alert(`No sync data found for device: ${sourceDeviceId}\n\nMake sure:\n1. The other device has enabled Sync Code method\n2. The Device ID is correct\n3. Both devices are on the same network\n4. The source device has exported data`);
+            return;
+        }
+
+        try {
+            const data = JSON.parse(syncData);
+            if (!data.libraryData) {
+                alert('Invalid sync data format!');
+                return;
+            }
+
+            if (!confirm(`Sync data from device ${sourceDeviceId}? This will merge/overwrite current data.`)) {
+                return;
+            }
+
+            const backupData = data.libraryData;
+            
+            // Merge or replace data
+            db.books = backupData.books || [];
+            db.patrons = backupData.patrons || [];
+            db.loans = backupData.loans || [];
+            db.borrowRequests = backupData.borrowRequests || [];
+            db.purchaseOrders = backupData.purchaseOrders || [];
+            db.serials = backupData.serials || [];
+            db.defaulters = backupData.defaulters || [];
+            db.stories = backupData.stories || [];
+            if (backupData.settings) db.settings = backupData.settings;
+
+            // Save to localStorage
+            db.saveData('books', db.books);
+            db.saveData('patrons', db.patrons);
+            db.saveData('loans', db.loans);
+            db.saveData('borrowRequests', db.borrowRequests);
+            db.saveData('purchaseOrders', db.purchaseOrders);
+            db.saveData('serials', db.serials);
+            db.saveData('defaulters', db.defaulters);
+            db.saveData('stories', db.stories);
+            db.saveData('settings', db.settings);
+
+            alert('✅ Data synced successfully! Refreshing application...');
+            location.reload();
+        } catch(err) {
+            alert('Error parsing sync data: ' + err.message);
+        }
+    } catch(error) {
+        console.error('Error syncing from device:', error);
+        alert('Error syncing: ' + error.message);
+    }
+}
+
+// Store current device's sync data for other devices to access
+function updateSyncData() {
+    try {
+        const deviceId = localStorage.getItem('deviceId');
+        const allData = {
+            libraryData: {
+                books: db.books || [],
+                patrons: db.patrons || [],
+                loans: db.loans || [],
+                borrowRequests: db.borrowRequests || [],
+                purchaseOrders: db.purchaseOrders || [],
+                serials: db.serials || [],
+                defaulters: db.defaulters || [],
+                stories: db.stories || [],
+                settings: db.settings || {}
+            },
+            exportDate: new Date().toISOString(),
+            exportedFrom: deviceId
+        };
+
+        const syncDataKey = `sync_data_${deviceId}`;
+        localStorage.setItem(syncDataKey, JSON.stringify(allData));
+        
+        // Keep sync data for 7 days
+        localStorage.setItem(syncDataKey + '_timestamp', new Date().getTime().toString());
+    } catch(error) {
+        console.error('Error updating sync data:', error);
+    }
+}
+
