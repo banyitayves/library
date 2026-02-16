@@ -416,6 +416,9 @@ function switchModule(moduleName) {
         case 'serials':
             loadSerials();
             break;
+        case 'stories':
+            initStories();
+            break;
         case 'reports':
             initReports();
             break;
