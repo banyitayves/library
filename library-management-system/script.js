@@ -947,19 +947,28 @@ function loadAllBooks() {
 
 function displayAllBooksTable(books) {
     const tbody = document.getElementById('allBooksTable');
+    if (!tbody) return;
+    
     tbody.innerHTML = books.length > 0
-        ? books.map(book => `
-            <tr>
-                <td>${book.isbn || 'N/A'}</td>
-                <td><strong>${book.title}</strong></td>
-                <td>${book.author}</td>
-                <td>${book.category}</td>
-                <td>${book.publisher || 'N/A'}</td>
-                <td>${book.pubYear || 'N/A'}</td>
-                <td><span class="availability-badge available">${book.available}</span></td>
-                <td>${book.quantity}</td>
-            </tr>
-        `).join('')
+        ? books.map(book => {
+            try {
+                return `
+                    <tr>
+                        <td>${book.isbn || 'N/A'}</td>
+                        <td><strong>${book.title || 'N/A'}</strong></td>
+                        <td>${book.author || 'N/A'}</td>
+                        <td>${book.category || 'N/A'}</td>
+                        <td>${book.publisher || 'N/A'}</td>
+                        <td>${book.pubYear || 'N/A'}</td>
+                        <td><span class="availability-badge available">${book.available || 0}</span></td>
+                        <td>${book.quantity || 0}</td>
+                    </tr>
+                `;
+            } catch(error) {
+                console.error('Error rendering book row:', book, error);
+                return `<tr><td colspan="8" style="color: red;">Error rendering this book</td></tr>`;
+            }
+        }).join('')
         : '<tr><td colspan="8" style="text-align: center; color: #7f8c8d;">No books in library</td></tr>';
 }
 
@@ -2315,117 +2324,149 @@ function initDefaulters() {
 }
 
 function addDefaulter() {
-    const name = document.getElementById('defaulterName').value.trim();
-    const id = document.getElementById('defaulterId').value.trim();
-    const books = document.getElementById('defaulterBooks').value.trim();
-    const dueDate = document.getElementById('defaulterDueDate').value;
-    const notes = document.getElementById('defaulterNotes').value.trim();
+    try {
+        const name = document.getElementById('defaulterName').value.trim();
+        const id = document.getElementById('defaulterId').value.trim();
+        const books = document.getElementById('defaulterBooks').value.trim();
+        const dueDate = document.getElementById('defaulterDueDate').value;
+        const notes = document.getElementById('defaulterNotes').value.trim();
 
-    if (!name || !id || !books) {
-        alert('Please fill in all required fields (Name, ID, Books)');
-        return;
+        if (!name || !id || !books) {
+            alert('Please fill in all required fields (Name, ID, Books)');
+            return;
+        }
+
+        const defaulter = {
+            id: db.generateId(),
+            studentName: name,
+            studentId: id,
+            books: books,
+            dueDate: dueDate || new Date().toISOString().split('T')[0],
+            notes: notes,
+            dateAdded: new Date().toISOString(),
+            status: 'pending'
+        };
+
+        db.defaulters.push(defaulter);
+        db.saveData('defaulters', db.defaulters);
+
+        // Clear form
+        document.getElementById('defaulterName').value = '';
+        document.getElementById('defaulterId').value = '';
+        document.getElementById('defaulterBooks').value = '';
+        document.getElementById('defaulterDueDate').value = '';
+        document.getElementById('defaulterNotes').value = '';
+
+        alert('Defaulter added successfully!');
+        loadDefaulters();
+    } catch(error) {
+        console.error('Error adding defaulter:', error);
+        alert('Error adding defaulter: ' + error.message);
     }
-
-    const defaulter = {
-        id: db.generateId(),
-        studentName: name,
-        studentId: id,
-        books: books,
-        dueDate: dueDate || new Date().toISOString().split('T')[0],
-        notes: notes,
-        dateAdded: new Date().toISOString(),
-        status: 'pending'
-    };
-
-    db.defaulters.push(defaulter);
-    db.saveData('defaulters', db.defaulters);
-
-    // Clear form
-    document.getElementById('defaulterName').value = '';
-    document.getElementById('defaulterId').value = '';
-    document.getElementById('defaulterBooks').value = '';
-    document.getElementById('defaulterDueDate').value = '';
-    document.getElementById('defaulterNotes').value = '';
-
-    alert('Defaulter added successfully!');
-    loadDefaulters();
 }
 
 function loadDefaulters() {
-    if (!db.defaulters) {
-        db.defaulters = db.loadData('defaulters') || [];
-    }
+    try {
+        if (!db.defaulters) {
+            db.defaulters = db.loadData('defaulters') || [];
+        }
 
-    const table = document.getElementById('defaultersTable');
-    if (!table) return;
+        const table = document.getElementById('defaultersTable');
+        if (!table) return;
 
-    table.innerHTML = '';
+        table.innerHTML = '';
 
-    db.defaulters.forEach(defaulter => {
-        const dueDate = new Date(defaulter.dueDate);
-        const today = new Date();
-        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+        if (!db.defaulters || db.defaulters.length === 0) {
+            table.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">No unreturned books recorded</td></tr>';
+            return;
+        }
 
-        const row = table.insertRow();
-        row.innerHTML = `
-            <td>${defaulter.studentName}</td>
-            <td>${defaulter.studentId}</td>
-            <td>${defaulter.books}</td>
-            <td>${new Date(defaulter.dueDate).toLocaleDateString()}</td>
-            <td><span style="color: ${daysOverdue > 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">${daysOverdue > 0 ? daysOverdue + ' days' : 'Not yet'}</span></td>
-            <td>${defaulter.notes}</td>
-            <td>
-                <div class="defaulters-table-actions">
-                    <button onclick="editDefaulter('${defaulter.id}')">✏️ Edit</button>
-                    <button onclick="markReturned('${defaulter.id}')" class="delete">✓ Returned</button>
-                    <button onclick="removeDefaulter('${defaulter.id}')" class="delete">🗑️ Delete</button>
-                </div>
-            </td>
-        `;
-    });
+        db.defaulters.forEach(defaulter => {
+            try {
+                const dueDate = new Date(defaulter.dueDate);
+                const today = new Date();
+                const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
 
-    if (db.defaulters.length === 0) {
-        table.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">No unreturned books recorded</td></tr>';
+                const row = table.insertRow();
+                row.innerHTML = `
+                    <td>${defaulter.studentName || 'N/A'}</td>
+                    <td>${defaulter.studentId || 'N/A'}</td>
+                    <td>${defaulter.books || 'N/A'}</td>
+                    <td>${defaulter.dueDate ? new Date(defaulter.dueDate).toLocaleDateString() : 'N/A'}</td>
+                    <td><span style="color: ${daysOverdue > 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">${daysOverdue > 0 ? daysOverdue + ' days' : 'Not yet'}</span></td>
+                    <td>${defaulter.notes || 'N/A'}</td>
+                    <td>
+                        <div class="defaulters-table-actions">
+                            <button onclick="editDefaulter('${defaulter.id}')">✏️ Edit</button>
+                            <button onclick="markReturned('${defaulter.id}')" class="delete">✓ Returned</button>
+                            <button onclick="removeDefaulter('${defaulter.id}')" class="delete">🗑️ Delete</button>
+                        </div>
+                    </td>
+                `;
+            } catch(rowError) {
+                console.error('Error rendering defaulter row:', defaulter, rowError);
+            }
+        });
+    } catch(error) {
+        console.error('Error loading defaulters:', error);
+        alert('Error loading defaulters list. Please refresh the page.');
     }
 }
 
 function searchDefaulters(e) {
-    const query = e.target.value.toLowerCase();
-    const table = document.getElementById('defaultersTable');
-    
-    const filtered = db.defaulters.filter(d => 
-        d.studentName.toLowerCase().includes(query) || 
-        d.studentId.toLowerCase().includes(query) ||
-        d.books.toLowerCase().includes(query)
-    );
+    try {
+        const query = e.target.value.toLowerCase().trim();
+        const table = document.getElementById('defaultersTable');
+        if (!table) return;
+        
+        if (!db.defaulters || db.defaulters.length === 0) {
+            table.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">No unreturned books recorded</td></tr>';
+            return;
+        }
+        
+        const filtered = db.defaulters.filter(d => {
+            const studentName = d.studentName ? d.studentName.toLowerCase() : '';
+            const studentId = d.studentId ? d.studentId.toLowerCase() : '';
+            const books = d.books ? d.books.toLowerCase() : '';
+            return studentName.includes(query) || studentId.includes(query) || books.includes(query);
+        });
 
-    table.innerHTML = '';
+        table.innerHTML = '';
 
-    filtered.forEach(defaulter => {
-        const dueDate = new Date(defaulter.dueDate);
-        const today = new Date();
-        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+        if (filtered.length === 0) {
+            table.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">No results found</td></tr>';
+            return;
+        }
 
-        const row = table.insertRow();
-        row.innerHTML = `
-            <td>${defaulter.studentName}</td>
-            <td>${defaulter.studentId}</td>
-            <td>${defaulter.books}</td>
-            <td>${new Date(defaulter.dueDate).toLocaleDateString()}</td>
-            <td><span style="color: ${daysOverdue > 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">${daysOverdue > 0 ? daysOverdue + ' days' : 'Not yet'}</span></td>
-            <td>${defaulter.notes}</td>
-            <td>
-                <div class="defaulters-table-actions">
-                    <button onclick="editDefaulter('${defaulter.id}')">✏️ Edit</button>
-                    <button onclick="markReturned('${defaulter.id}')" class="delete">✓ Returned</button>
-                    <button onclick="removeDefaulter('${defaulter.id}')" class="delete">🗑️ Delete</button>
-                </div>
-            </td>
-        `;
-    });
+        filtered.forEach(defaulter => {
+            try {
+                const dueDate = new Date(defaulter.dueDate);
+                const today = new Date();
+                const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
 
-    if (filtered.length === 0) {
-        table.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">No results found</td></tr>';
+                const row = table.insertRow();
+                row.innerHTML = `
+                    <td>${defaulter.studentName || 'N/A'}</td>
+                    <td>${defaulter.studentId || 'N/A'}</td>
+                    <td>${defaulter.books || 'N/A'}</td>
+                    <td>${defaulter.dueDate ? new Date(defaulter.dueDate).toLocaleDateString() : 'N/A'}</td>
+                    <td><span style="color: ${daysOverdue > 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">${daysOverdue > 0 ? daysOverdue + ' days' : 'Not yet'}</span></td>
+                    <td>${defaulter.notes || 'N/A'}</td>
+                    <td>
+                        <div class="defaulters-table-actions">
+                            <button onclick="editDefaulter('${defaulter.id}')">✏️ Edit</button>
+                            <button onclick="markReturned('${defaulter.id}')" class="delete">✓ Returned</button>
+                            <button onclick="removeDefaulter('${defaulter.id}')" class="delete">🗑️ Delete</button>
+                        </div>
+                    </td>
+                `;
+            } catch(rowError) {
+                console.error('Error rendering search result row:', defaulter, rowError);
+            }
+        });
+    } catch(error) {
+        console.error('Error searching defaulters:', error);
+        alert('Error searching. Please try again.');
     }
 }
 
