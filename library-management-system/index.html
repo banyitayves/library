@@ -673,42 +673,99 @@
 
                 <!-- Reports Module -->
                 <section id="reports-module" class="module">
-                    <div class="module-header">
-                        <h3>Reports & Statistics</h3>
-                        <button class="btn-primary" id="generateReportBtn">Generate Custom Report</button>
-                    </div>
+                    <div class="reports-container">
+                        <h3>📊 Library Reports & Statistics</h3>
+                        
+                        <!-- Report Selection Grid -->
+                        <div class="reports-selection">
+                            <div class="filter-section">
+                                <label>Select Report Type:</label>
+                                <select id="reportTypeFilter">
+                                    <option value="">-- Choose a Report --</option>
+                                    <option value="circulation">Circulation Report</option>
+                                    <option value="collection">Collection Usage Report</option>
+                                    <option value="overdue">Overdue Items Report</option>
+                                    <option value="patron">Patron Activity Report</option>
+                                    <option value="inventory">Inventory Report</option>
+                                    <option value="dailySummary">Daily Summary Report</option>
+                                    <option value="monthlySummary">Monthly Summary Report</option>
+                                    <option value="financial">Financial Report</option>
+                                </select>
+                            </div>
 
-                    <div class="reports-grid">
-                        <div class="report-card">
-                            <h4>Circulation Report</h4>
-                            <p>Analyze checkouts and returns patterns</p>
-                            <button class="btn-secondary" onclick="generateCirculationReport()">View Report</button>
-                        </div>
-                        <div class="report-card">
-                            <h4>Collection Usage</h4>
-                            <p>Top books and categories by usage</p>
-                            <button class="btn-secondary" onclick="generateUsageReport()">View Report</button>
-                        </div>
-                        <div class="report-card">
-                            <h4>Patron Activity</h4>
-                            <p>Member borrowing statistics</p>
-                            <button class="btn-secondary" onclick="generatePatronReport()">View Report</button>
-                        </div>
-                        <div class="report-card">
-                            <h4>Financial Report</h4>
-                            <p>Budget and acquisition spending</p>
-                            <button class="btn-secondary" onclick="generateFinancialReport()">View Report</button>
-                        </div>
-                    </div>
+                            <div class="filter-section">
+                                <label>Date Range:</label>
+                                <div class="date-range">
+                                    <input type="date" id="reportStartDate">
+                                    <span>to</span>
+                                    <input type="date" id="reportEndDate">
+                                </div>
+                            </div>
 
-                    <div id="reportResults" class="report-results" style="display:none;">
-                        <h3>Report Results</h3>
-                        <div id="reportChart" class="chart-container"></div>
-                        <table class="data-table" id="reportTable">
-                            <thead></thead>
-                            <tbody></tbody>
-                        </table>
-                        <button class="btn-secondary" onclick="printReport()">Print Report</button>
+                            <div class="filter-section">
+                                <button class="btn-primary" id="generateReportBtn">📊 Generate Report</button>
+                                <button class="btn-secondary" id="autoReportBtn">⚡ Quick Stats</button>
+                            </div>
+                        </div>
+
+                        <!-- Report Display Area -->
+                        <div id="reportContainer" class="report-display" style="display:none;">
+                            <div class="report-header">
+                                <h2 id="reportTitle">Report Title</h2>
+                                <div class="report-meta">
+                                    <span id="reportDate">Generated: <span id="reportDateTime"></span></span>
+                                    <span id="reportPeriod" style="margin-left: 20px;"></span>
+                                </div>
+                            </div>
+
+                            <!-- Report Summary Cards -->
+                            <div class="report-summary" id="reportSummary">
+                            </div>
+
+                            <!-- Report Details Table -->
+                            <div class="report-details">
+                                <table class="data-table" id="reportTable">
+                                    <thead id="reportTableHead"></thead>
+                                    <tbody id="reportTableBody"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Report Actions -->
+                            <div class="report-actions">
+                                <button class="btn-primary" onclick="printReport()">🖨️ Print Report</button>
+                                <button class="btn-secondary" onclick="exportReportCSV()">📥 Export as CSV</button>
+                                <button class="btn-secondary" onclick="exportReportPDF()">📄 Export as PDF</button>
+                                <button class="btn-secondary" onclick="clearReport()">✕ Clear</button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Summary Cards -->
+                        <div class="quick-stats" id="quickStats">
+                            <div class="stat-card">
+                                <h4>Total Books</h4>
+                                <p class="stat-value" id="quickStatsTotalBooks">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Books Borrowed</h4>
+                                <p class="stat-value" id="quickStatsBorrowed">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Available Books</h4>
+                                <p class="stat-value" id="quickStatsAvailable">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Total Members</h4>
+                                <p class="stat-value" id="quickStatsMembers">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Overdue Items</h4>
+                                <p class="stat-value" id="quickStatsOverdue">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <h4>Active Loans</h4>
+                                <p class="stat-value" id="quickStatsActiveLoans">0</p>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
