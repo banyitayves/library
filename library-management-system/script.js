@@ -18,6 +18,7 @@ class LibraryDB {
         this.borrowRequests = this.loadData('borrowRequests') || [];
         this.purchaseOrders = this.loadData('purchaseOrders') || [];
         this.serials = this.loadData('serials') || [];
+        this.defaulters = this.loadData('defaulters') || [];
         this.settings = this.loadData('settings') || this.getDefaultSettings();
         
         // Add default book if none exist
@@ -342,6 +343,9 @@ function initializeEventListeners() {
 
     // Global Search
     document.getElementById('globalSearch').addEventListener('input', performGlobalSearch);
+
+    // Initialize defaulters module
+    initDefaulters();
 }
 
 // ========== MODULE MANAGEMENT ==========
@@ -366,6 +370,7 @@ function switchModule(moduleName) {
         books: 'All Books in Library',
         cataloging: 'Book Cataloging',
         circulation: 'Circulation Management',
+        defaulters: 'Unreturned Books',
         opac: 'Search Library Catalog',
         patrons: 'Patron Management',
         acquisitions: 'Acquisitions',
@@ -388,6 +393,9 @@ function switchModule(moduleName) {
             break;
         case 'circulation':
             loadCirculation();
+            break;
+        case 'defaulters':
+            loadDefaulters();
             break;
         case 'opac':
             displayOpacResults(db.books);
