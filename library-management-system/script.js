@@ -382,6 +382,7 @@ function switchModule(moduleName) {
         patrons: 'Patron Management',
         acquisitions: 'Acquisitions',
         serials: 'Serials Management',
+        stories: 'Stories & E-Books',
         reports: 'Reports & Statistics',
         settings: 'Settings',
         about: 'About GS BUSANZA'
