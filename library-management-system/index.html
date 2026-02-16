@@ -672,6 +672,108 @@
                     </div>
                 </section>
 
+                <!-- Stories & E-Books Module -->
+                <section id="stories-module" class="module">
+                    <div class="stories-container">
+                        <div class="module-header">
+                            <h3>📖 Stories & E-Books</h3>
+                            <button class="btn-primary" id="addStoryBtn">+ Add New Story</button>
+                        </div>
+
+                        <div class="search-filter">
+                            <input type="text" id="storiesSearch" placeholder="Search stories by title or author...">
+                            <select id="storiesCategoryFilter">
+                                <option value="">All Categories</option>
+                                <option value="Fiction">Fiction</option>
+                                <option value="Non-Fiction">Non-Fiction</option>
+                                <option value="Science">Science</option>
+                                <option value="History">History</option>
+                                <option value="Children">Children</option>
+                                <option value="Biography">Biography</option>
+                                <option value="Adventure">Adventure</option>
+                            </select>
+                        </div>
+
+                        <div class="stories-grid" id="storiesGrid"></div>
+
+                        <!-- Add/Edit Story Modal -->
+                        <div id="storyModal" class="modal">
+                            <div class="modal-content">
+                                <span class="close">&times;</span>
+                                <h3 id="storyModalTitle">Add New Story</h3>
+                                <form id="storyForm">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Title</label>
+                                            <input type="text" id="storyTitle" placeholder="Enter story title" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Author</label>
+                                            <input type="text" id="storyAuthor" placeholder="Enter author name" required>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Category</label>
+                                            <select id="storyCategory" required>
+                                                <option value="Fiction">Fiction</option>
+                                                <option value="Non-Fiction">Non-Fiction</option>
+                                                <option value="Science">Science</option>
+                                                <option value="History">History</option>
+                                                <option value="Children">Children</option>
+                                                <option value="Biography">Biography</option>
+                                                <option value="Adventure">Adventure</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Cover Image URL</label>
+                                            <input type="text" id="storyCover" placeholder="e.g., https://example.com/image.jpg">
+                                        </div>
+                                    </div>
+                                    <div class="form-group full">
+                                        <label>Description</label>
+                                        <textarea id="storyDescription" placeholder="Brief description of the story" required></textarea>
+                                    </div>
+                                    <div class="form-group full">
+                                        <label>Story Content (Text or Markdown)</label>
+                                        <textarea id="storyContent" placeholder="Paste your story text/content here..." rows="10" required></textarea>
+                                    </div>
+                                    <div class="form-group full">
+                                        <label>PDF Link (Optional)</label>
+                                        <input type="text" id="storyPDF" placeholder="e.g., https://example.com/book.pdf">
+                                    </div>
+                                    <div class="form-row">
+                                        <button type="submit" class="btn-primary">Save Story</button>
+                                        <button type="button" class="btn-secondary" id="closeStoryModalBtn">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Story Reader Modal -->
+                        <div id="storyReaderModal" class="modal">
+                            <div class="modal-content story-reader">
+                                <span class="close">&times;</span>
+                                <div class="story-reader-header">
+                                    <div>
+                                        <h2 id="readerTitle">Story Title</h2>
+                                        <p id="readerAuthor">by Author</p>
+                                    </div>
+                                    <div class="reader-controls">
+                                        <button onclick="increaseFontSize()" class="btn-secondary">A+</button>
+                                        <button onclick="decreaseFontSize()" class="btn-secondary">A-</button>
+                                        <button id="downloadPDFBtn" class="btn-secondary" style="display:none;">📥 Download PDF</button>
+                                    </div>
+                                </div>
+                                <div class="story-content" id="storyContent"></div>
+                                <div class="story-reader-footer">
+                                    <button onclick="closeStoryReader()" class="btn-secondary">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Reports Module -->
                 <section id="reports-module" class="module">
                     <div class="reports-container">
