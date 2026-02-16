@@ -409,6 +409,9 @@ function switchModule(moduleName) {
         case 'serials':
             loadSerials();
             break;
+        case 'reports':
+            initReports();
+            break;
         case 'about':
             // About page loads automatically, no additional data needed
             break;
@@ -1720,6 +1723,383 @@ function generateFinancialReport() {
     `);
 }
 
+// ========== ENHANCED REPORTS ==========
+function initReports() {
+    const reportTypeFilter = document.getElementById('reportTypeFilter');
+    const generateBtn = document.getElementById('generateReportBtn');
+    const autoBtn = document.getElementById('autoReportBtn');
+    const startDate = document.getElementById('reportStartDate');
+    const endDate = document.getElementById('reportEndDate');
+
+    if (reportTypeFilter) {
+        reportTypeFilter.addEventListener('change', (e) => {
+            if (e.target.value) {
+                generateBtn.textContent = '📊 Generate ' + e.target.options[e.target.selectedIndex].text;
+            }
+        });
+    }
+
+    if (generateBtn) {
+        generateBtn.addEventListener('click', generateSelectedReport);
+    }
+
+    if (autoBtn) {
+        autoBtn.addEventListener('click', showQuickStats);
+    }
+
+    // Set default dates
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    if (startDate) startDate.valueAsDate = firstDay;
+    if (endDate) endDate.valueAsDate = today;
+
+    // Load quick stats on page load
+    loadReportQuickStats();
+}
+
+function showQuickStats() {
+    const stats = {
+        totalBooks: db.books.length,
+        borrowed: db.loans.filter(l => !l.returnDate).length,
+        available: db.books.filter(b => b.available > 0).length,
+        members: db.patrons.length,
+        overdue: db.loans.filter(l => !l.returnDate && new Date(l.dueDate) < new Date()).length,
+        activeLoans: db.loans.filter(l => !l.returnDate).length
+    };
+
+    document.getElementById('quickStatsTotalBooks').textContent = stats.totalBooks;
+    document.getElementById('quickStatsBorrowed').textContent = stats.borrowed;
+    document.getElementById('quickStatsAvailable').textContent = stats.available;
+    document.getElementById('quickStatsMembers').textContent = stats.members;
+    document.getElementById('quickStatsOverdue').textContent = stats.overdue;
+    document.getElementById('quickStatsActiveLoans').textContent = stats.activeLoans;
+}
+
+function loadReportQuickStats() {
+    showQuickStats();
+}
+
+function generateSelectedReport() {
+    const reportType = document.getElementById('reportTypeFilter').value;
+    const startDate = document.getElementById('reportStartDate').value;
+    const endDate = document.getElementById('reportEndDate').value;
+
+    if (!reportType) {
+        alert('Please select a report type');
+        return;
+    }
+
+    const dateRange = startDate && endDate ? { start: new Date(startDate), end: new Date(endDate) } : null;
+
+    switch(reportType) {
+        case 'circulation':
+            displayCirculationReport(dateRange);
+            break;
+        case 'collection':
+            displayCollectionReport(dateRange);
+            break;
+        case 'overdue':
+            displayOverdueReport();
+            break;
+        case 'patron':
+            displayPatronReport(dateRange);
+            break;
+        case 'inventory':
+            displayInventoryReport();
+            break;
+        case 'dailySummary':
+            displayDailySummary();
+            break;
+        case 'monthlySummary':
+            displayMonthlySummary();
+            break;
+        case 'financial':
+            displayFinancialReport(dateRange);
+            break;
+    }
+}
+
+function displayCirculationReport(dateRange) {
+    let loans = db.loans;
+    if (dateRange) {
+        loans = loans.filter(l => new Date(l.checkoutDate) >= dateRange.start && new Date(l.checkoutDate) <= dateRange.end);
+    }
+
+    const totalCheckouts = loans.length;
+    const totalReturns = loans.filter(l => l.returnDate).length;
+    const activeLoans = loans.filter(l => !l.returnDate).length;
+
+    const summaryData = [
+        { label: 'Total Checkouts', value: totalCheckouts },
+        { label: 'Total Returns', value: totalReturns },
+        { label: 'Active Loans', value: activeLoans },
+        { label: 'Return Rate', value: totalCheckouts > 0 ? ((totalReturns / totalCheckouts) * 100).toFixed(1) + '%' : '0%' }
+    ];
+
+    const tableData = loans.slice(-50).reverse().map(loan => ({
+        Date: new Date(loan.checkoutDate).toLocaleDateString(),
+        Book: db.books.find(b => b.id === loan.bookId)?.title || 'Unknown',
+        Patron: db.patrons.find(p => p.id === loan.patronId) ? `${db.patrons.find(p => p.id === loan.patronId).firstName} ${db.patrons.find(p => p.id === loan.patronId).lastName}` : 'Unknown',
+        Status: loan.returnDate ? 'Returned' : 'Active',
+        'Due Date': new Date(loan.dueDate).toLocaleDateString()
+    }));
+
+    displayReport('Circulation Report', summaryData, tableData, dateRange);
+}
+
+function displayCollectionReport(dateRange) {
+    const bookUsage = db.books.map(book => ({
+        title: book.title,
+        category: book.category,
+        available: book.available,
+        total: book.quantity,
+        loaned: db.loans.filter(l => l.bookId === book.id && (!dateRange || (new Date(l.checkoutDate) >= dateRange.start && new Date(l.checkoutDate) <= dateRange.end))).length
+    })).sort((a, b) => b.loaned - a.loaned);
+
+    const summaryData = [
+        { label: 'Total Titles', value: db.books.length },
+        { label: 'Total Items', value: db.books.reduce((sum, b) => sum + b.quantity, 0) },
+        { label: 'Available', value: db.books.reduce((sum, b) => sum + b.available, 0) },
+        { label: 'Most Popular', value: bookUsage[0]?.title || 'N/A' }
+    ];
+
+    const tableData = bookUsage.slice(0, 50).map(book => ({
+        'Book Title': book.title,
+        Category: book.category,
+        'Total Copies': book.total,
+        Available: book.available,
+        'Times Borrowed': book.loaned
+    }));
+
+    displayReport('Collection Usage Report', summaryData, tableData, dateRange);
+}
+
+function displayOverdueReport() {
+    const overdueLoans = db.loans.filter(l => !l.returnDate && new Date(l.dueDate) < new Date());
+
+    const summaryData = [
+        { label: 'Overdue Items', value: overdueLoans.length },
+        { label: 'Student Defaulters', value: new Set(overdueLoans.map(l => l.patronId)).size },
+        { label: 'Overdue Days (Avg)', value: overdueLoans.length > 0 ? (overdueLoans.reduce((sum, l) => sum + Math.floor((new Date() - new Date(l.dueDate)) / (1000*60*60*24)), 0) / overdueLoans.length).toFixed(1) : '0' }
+    ];
+
+    const tableData = overdueLoans.map(loan => ({
+        'Student Name': db.patrons.find(p => p.id === loan.patronId) ? `${db.patrons.find(p => p.id === loan.patronId).firstName} ${db.patrons.find(p => p.id === loan.patronId).lastName}` : 'Unknown',
+        'Book Title': db.books.find(b => b.id === loan.bookId)?.title || 'Unknown',
+        'Due Date': new Date(loan.dueDate).toLocaleDateString(),
+        'Days Overdue': Math.floor((new Date() - new Date(loan.dueDate)) / (1000*60*60*24))
+    })).sort((a, b) => b['Days Overdue'] - a['Days Overdue']);
+
+    displayReport('Overdue Items Report', summaryData, tableData);
+}
+
+function displayPatronReport(dateRange) {
+    const patronActivity = db.patrons.map(patron => ({
+        name: `${patron.firstName} ${patron.lastName}`,
+        category: patron.category,
+        totalBorrowed: db.loans.filter(l => l.patronId === patron.id && (!dateRange || (new Date(l.checkoutDate) >= dateRange.start && new Date(l.checkoutDate) <= dateRange.end))).length,
+        active: db.loans.filter(l => l.patronId === patron.id && !l.returnDate).length,
+        joinDate: patron.joinDate
+    })).sort((a, b) => b.totalBorrowed - a.totalBorrowed);
+
+    const summaryData = [
+        { label: 'Total Members', value: db.patrons.length },
+        { label: 'Active Borrowers', value: new Set(db.loans.filter(l => !l.returnDate).map(l => l.patronId)).size },
+        { label: 'Top Borrower', value: patronActivity[0]?.name || 'N/A' },
+        { label: 'Students', value: db.patrons.filter(p => p.category === 'Student').length }
+    ];
+
+    const tableData = patronActivity.slice(0, 50).map(p => ({
+        'Name': p.name,
+        'Category': p.category,
+        'Borrowed': p.totalBorrowed,
+        'Currently Borrowed': p.active,
+        'Member Since': new Date(p.joinDate).toLocaleDateString()
+    }));
+
+    displayReport('Patron Activity Report', summaryData, tableData, dateRange);
+}
+
+function displayInventoryReport() {
+    const inventory = db.books.map(book => ({
+        title: book.title,
+        isbn: book.isbn,
+        category: book.category,
+        quantity: book.quantity,
+        available: book.available,
+        borrowed: book.quantity - book.available
+    }));
+
+    const summaryData = [
+        { label: 'Total Titles', value: db.books.length },
+        { label: 'Total Items', value: db.books.reduce((sum, b) => sum + b.quantity, 0) },
+        { label: 'Items Borrowed', value: db.books.reduce((sum, b) => sum + (b.quantity - b.available), 0) },
+        { label:'Availability Rate', value: ((db.books.reduce((sum, b) => sum + b.available, 0) / db.books.reduce((sum, b) => sum + b.quantity, 0)) * 100).toFixed(1) + '%' }
+    ];
+
+    const tableData = inventory.map(item => ({
+        'Title': item.title,
+        'ISBN': item.isbn || 'N/A',
+        'Category': item.category,
+        'Total': item.quantity,
+        'Available': item.available,
+        'Borrowed': item.borrowed
+    }));
+
+    displayReport('Inventory Report', summaryData, tableData);
+}
+
+function displayDailySummary() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayLoans = db.loans.filter(l => new Date(l.checkoutDate) >= today && new Date(l.checkoutDate) < tomorrow);
+    const todayReturns = db.loans.filter(l => l.returnDate && new Date(l.returnDate) >= today && new Date(l.returnDate) < tomorrow);
+
+    const summaryData = [
+        { label: 'Today Checkouts', value: todayLoans.length },
+        { label: 'Today Returns', value: todayReturns.length },
+        { label: 'Current Active Loans', value: db.loans.filter(l => !l.returnDate).length },
+        { label: 'Overdue Items', value: db.loans.filter(l => !l.returnDate && new Date(l.dueDate) < today).length }
+    ];
+
+    const tableData = todayLoans.map(loan => ({
+        'Book': db.books.find(b => b.id === loan.bookId)?.title || 'Unknown',
+        'Patron': db.patrons.find(p => p.id === loan.patronId) ? `${db.patrons.find(p => p.id === loan.patronId).firstName} ${db.patrons.find(p => p.id === loan.patronId).lastName}` : 'Unknown',
+        'Status': 'Checked Out',
+        'Time': new Date(loan.checkoutDate).toLocaleTimeString()
+    }));
+
+    displayReport('Daily Summary Report', summaryData, tableData);
+}
+
+function displayMonthlySummary() {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+    const monthLoans = db.loans.filter(l => new Date(l.checkoutDate) >= firstDay && new Date(l.checkoutDate) <= lastDay);
+    const monthReturns = db.loans.filter(l => l.returnDate && new Date(l.returnDate) >= firstDay && new Date(l.returnDate) <= lastDay);
+
+    const summaryData = [
+        { label: 'Month Checkouts', value: monthLoans.length },
+        { label: 'Month Returns', value: monthReturns.length },
+        { label: 'Active Loans', value: db.loans.filter(l => !l.returnDate).length },
+        { label: 'Unique Borrowers', value: new Set(monthLoans.map(l => l.patronId)).size }
+    ];
+
+    const tableData = monthLoans.slice(-30).reverse().map(loan => ({
+        'Date': new Date(loan.checkoutDate).toLocaleDateString(),
+        'Book': db.books.find(b => b.id === loan.bookId)?.title || 'Unknown',
+        'Patron': db.patrons.find(p => p.id === loan.patronId) ? `${db.patrons.find(p => p.id === loan.patronId).firstName}` : 'Unknown',
+        'Status': loan.returnDate ? 'Returned' : 'Active'
+    }));
+
+    displayReport('Monthly Summary Report', summaryData, tableData);
+}
+
+function displayFinancialReport(dateRange) {
+    const pos = dateRange ? db.purchaseOrders.filter(po => {
+        const poDate = new Date(po.dateCreated);
+        return poDate >= dateRange.start && poDate <= dateRange.end;
+    }) : db.purchaseOrders;
+
+    const totalSpent = pos.reduce((sum, po) => sum + po.amount, 0);
+
+    const summaryData = [
+        { label: 'Total POs', value: pos.length },
+        { label: 'Total Spent', value: '$' + totalSpent.toFixed(2) },
+        { label: 'Average PO', value: pos.length > 0 ? '$' + (totalSpent / pos.length).toFixed(2) : '$0.00' }
+    ];
+
+    const tableData = pos.map(po => ({
+        'Vendor': po.vendor,
+        'Books': po.items.join(', ').substring(0, 50) + '...',
+        'Amount': '$' + po.amount.toFixed(2),
+        'Status': po.status,
+        'Date': new Date(po.dateCreated).toLocaleDateString()
+    }));
+
+    displayReport('Financial Report', summaryData, tableData, dateRange);
+}
+
+function displayReport(title, summaryData, tableData, dateRange) {
+    document.getElementById('reportContainer').style.display = 'block';
+    document.getElementById('reportTitle').textContent = title;
+    document.getElementById('reportDateTime').textContent = new Date().toLocaleString();
+
+    if (dateRange) {
+        document.getElementById('reportPeriod').textContent = `Period: ${dateRange.start.toLocaleDateString()} - ${dateRange.end.toLocaleDateString()}`;
+    } else {
+        document.getElementById('reportPeriod').textContent = '';
+    }
+
+    // Display summary cards
+    const summaryHTML = summaryData.map(item => `
+        <div class="summary-card">
+            <h4>${item.label}</h4>
+            <div class="value">${item.value}</div>
+        </div>
+    `).join('');
+    document.getElementById('reportSummary').innerHTML = summaryHTML;
+
+    // Display table
+    if (tableData && tableData.length > 0) {
+        const headers = Object.keys(tableData[0]);
+        const headerHTML = headers.map(h => `<th>${h}</th>`).join('');
+        document.getElementById('reportTableHead').innerHTML = `<tr>${headerHTML}</tr>`;
+
+        const bodyHTML = tableData.map(row => 
+            `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`
+        ).join('');
+        document.getElementById('reportTableBody').innerHTML = bodyHTML;
+    }
+
+    // Store report data for export
+    window.currentReportData = { title, summaryData, tableData, dateRange };
+}
+
+function clearReport() {
+    document.getElementById('reportContainer').style.display = 'none';
+    document.getElementById('reportTypeFilter').value = '';
+}
+
+function exportReportCSV() {
+    if (!window.currentReportData) {
+        alert('No report to export. Please generate a report first.');
+        return;
+    }
+
+    const { title, tableData } = window.currentReportData;
+    if (!tableData || tableData.length === 0) {
+        alert('No data to export');
+        return;
+    }
+
+    const headers = Object.keys(tableData[0]);
+    let csv = title + '\n';
+    csv += 'Generated: ' + new Date().toLocaleString() + '\n\n';
+    csv += headers.map(h => `"${h}"`).join(',') + '\n';
+    csv += tableData.map(row =>
+        headers.map(h => `"${(row[h] || '').toString().replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+function exportReportPDF() {
+    alert('PDF export: Please use Print (Ctrl+P) and save as PDF for best results.');
+    printReport();
+}
+
 function showReport(title, content) {
     document.getElementById('reportResults').style.display = 'block';
     const reportTable = document.getElementById('reportTable');
@@ -1730,6 +2110,7 @@ function showReport(title, content) {
 function printReport() {
     window.print();
 }
+
 
 // ========== SETTINGS ==========
 function loadSettings() {
