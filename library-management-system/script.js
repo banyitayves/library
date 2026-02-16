@@ -742,6 +742,7 @@ function importBooksFromCSV() {
             });
             
             db.saveData('books', db.books);
+            updateSyncData(); // Update sync data after importing
             alert(`Successfully imported ${importedCount} books!`);
             document.getElementById('importBooksModal').classList.remove('show');
             fileInput.value = '';
@@ -797,6 +798,7 @@ function importMembersFromCSV() {
             });
             
             db.saveData('patrons', db.patrons);
+            updateSyncData(); // Update sync data after importing
             alert(`Successfully imported ${importedCount} members!`);
             document.getElementById('importMembersModal').classList.remove('show');
             fileInput.value = '';
