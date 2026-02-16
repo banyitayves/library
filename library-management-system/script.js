@@ -1841,3 +1841,195 @@ function viewLoanDetails(loanId) {
         `);
     }
 }
+// ========== DEFAULTERS/UNRETURNED BOOKS FUNCTIONS ==========
+function initDefaulters() {
+    if (!db.defaulters) {
+        db.defaulters = db.loadData('defaulters') || [];
+    }
+
+    const addBtn = document.getElementById('addDefaulterBtn');
+    if (addBtn) {
+        addBtn.addEventListener('click', addDefaulter);
+    }
+
+    const searchInput = document.getElementById('defaultersSearch');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', searchDefaulters);
+    }
+
+    const exportBtn = document.getElementById('exportDefaultersBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportDefaulters);
+    }
+
+    loadDefaulters();
+}
+
+function addDefaulter() {
+    const name = document.getElementById('defaulterName').value.trim();
+    const id = document.getElementById('defaulterId').value.trim();
+    const books = document.getElementById('defaulterBooks').value.trim();
+    const dueDate = document.getElementById('defaulterDueDate').value;
+    const notes = document.getElementById('defaulterNotes').value.trim();
+
+    if (!name || !id || !books) {
+        alert('Please fill in all required fields (Name, ID, Books)');
+        return;
+    }
+
+    const defaulter = {
+        id: db.generateId(),
+        studentName: name,
+        studentId: id,
+        books: books,
+        dueDate: dueDate || new Date().toISOString().split('T')[0],
+        notes: notes,
+        dateAdded: new Date().toISOString(),
+        status: 'pending'
+    };
+
+    db.defaulters.push(defaulter);
+    db.saveData('defaulters', db.defaulters);
+
+    // Clear form
+    document.getElementById('defaulterName').value = '';
+    document.getElementById('defaulterId').value = '';
+    document.getElementById('defaulterBooks').value = '';
+    document.getElementById('defaulterDueDate').value = '';
+    document.getElementById('defaulterNotes').value = '';
+
+    alert('Defaulter added successfully!');
+    loadDefaulters();
+}
+
+function loadDefaulters() {
+    if (!db.defaulters) {
+        db.defaulters = db.loadData('defaulters') || [];
+    }
+
+    const table = document.getElementById('defaultersTable');
+    if (!table) return;
+
+    table.innerHTML = '';
+
+    db.defaulters.forEach(defaulter => {
+        const dueDate = new Date(defaulter.dueDate);
+        const today = new Date();
+        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+
+        const row = table.insertRow();
+        row.innerHTML = `
+            <td>${defaulter.studentName}</td>
+            <td>${defaulter.studentId}</td>
+            <td>${defaulter.books}</td>
+            <td>${new Date(defaulter.dueDate).toLocaleDateString()}</td>
+            <td><span style="color: ${daysOverdue > 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">${daysOverdue > 0 ? daysOverdue + ' days' : 'Not yet'}</span></td>
+            <td>${defaulter.notes}</td>
+            <td>
+                <div class="defaulters-table-actions">
+                    <button onclick="editDefaulter('${defaulter.id}')">✏️ Edit</button>
+                    <button onclick="markReturned('${defaulter.id}')" class="delete">✓ Returned</button>
+                    <button onclick="removeDefaulter('${defaulter.id}')" class="delete">🗑️ Delete</button>
+                </div>
+            </td>
+        `;
+    });
+
+    if (db.defaulters.length === 0) {
+        table.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">No unreturned books recorded</td></tr>';
+    }
+}
+
+function searchDefaulters(e) {
+    const query = e.target.value.toLowerCase();
+    const table = document.getElementById('defaultersTable');
+    
+    const filtered = db.defaulters.filter(d => 
+        d.studentName.toLowerCase().includes(query) || 
+        d.studentId.toLowerCase().includes(query) ||
+        d.books.toLowerCase().includes(query)
+    );
+
+    table.innerHTML = '';
+
+    filtered.forEach(defaulter => {
+        const dueDate = new Date(defaulter.dueDate);
+        const today = new Date();
+        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+
+        const row = table.insertRow();
+        row.innerHTML = `
+            <td>${defaulter.studentName}</td>
+            <td>${defaulter.studentId}</td>
+            <td>${defaulter.books}</td>
+            <td>${new Date(defaulter.dueDate).toLocaleDateString()}</td>
+            <td><span style="color: ${daysOverdue > 0 ? '#e74c3c' : '#27ae60'}; font-weight: bold;">${daysOverdue > 0 ? daysOverdue + ' days' : 'Not yet'}</span></td>
+            <td>${defaulter.notes}</td>
+            <td>
+                <div class="defaulters-table-actions">
+                    <button onclick="editDefaulter('${defaulter.id}')">✏️ Edit</button>
+                    <button onclick="markReturned('${defaulter.id}')" class="delete">✓ Returned</button>
+                    <button onclick="removeDefaulter('${defaulter.id}')" class="delete">🗑️ Delete</button>
+                </div>
+            </td>
+        `;
+    });
+
+    if (filtered.length === 0) {
+        table.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #7f8c8d;">No results found</td></tr>';
+    }
+}
+
+function editDefaulter(defaulterId) {
+    const defaulter = db.defaulters.find(d => d.id === defaulterId);
+    if (!defaulter) return;
+
+    const newBooks = prompt('Edit books not returned:', defaulter.books);
+    if (newBooks !== null) {
+        defaulter.books = newBooks;
+        db.saveData('defaulters', db.defaulters);
+        loadDefaulters();
+    }
+}
+
+function markReturned(defaulterId) {
+    if (confirm('Mark all books as returned for this student?')) {
+        db.defaulters = db.defaulters.filter(d => d.id !== defaulterId);
+        db.saveData('defaulters', db.defaulters);
+        alert('Student marked as having returned all books!');
+        loadDefaulters();
+    }
+}
+
+function removeDefaulter(defaulterId) {
+    if (confirm('Remove this entry?')) {
+        db.defaulters = db.defaulters.filter(d => d.id !== defaulterId);
+        db.saveData('defaulters', db.defaulters);
+        loadDefaulters();
+    }
+}
+
+function exportDefaulters() {
+    if (!db.defaulters || db.defaulters.length === 0) {
+        alert('No defaulters to export!');
+        return;
+    }
+
+    let csv = 'Student Name,Student ID,Books Not Returned,Due Date,Days Overdue,Notes,Date Added\n';
+
+    db.defaulters.forEach(defaulter => {
+        const dueDate = new Date(defaulter.dueDate);
+        const today = new Date();
+        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+
+        csv += `"${defaulter.studentName}","${defaulter.studentId}","${defaulter.books}","${new Date(defaulter.dueDate).toLocaleDateString()}","${daysOverdue}","${defaulter.notes}","${new Date(defaulter.dateAdded).toLocaleDateString()}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `defaulters_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
